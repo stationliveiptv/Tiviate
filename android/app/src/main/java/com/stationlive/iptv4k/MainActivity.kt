@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        player.release()
         super.onDestroy()
     }
 }
@@ -88,7 +89,7 @@ private fun StationLiveApp(
     var favorites by remember { mutableStateOf(prefs.getStringSet("urls", emptySet())?.toSet() ?: emptySet()) }
     var favoritesOnly by remember { mutableStateOf(false) }
     val groups = remember(entries) { listOf("All") + entries.mapNotNull { it.group }.distinct().sorted() }
-    val visible = remember(entries, search, selectedGroup) {
+    val visible = remember(entries, search, selectedGroup, favoritesOnly, favorites) {
         entries.filter {
             (selectedGroup == "All" || it.group == selectedGroup) &&
                 (search.isBlank() || it.title.contains(search, true) || it.group.orEmpty().contains(search, true)) &&
@@ -166,6 +167,14 @@ private fun StationLiveApp(
                                 Column(Modifier.weight(1f)) {
                                     Text(entry.title, color = Color.White, fontWeight = FontWeight.SemiBold)
                                     Text(entry.group ?: "Uncategorized", color = Muted, fontSize = 11.sp)
+                                }
+                                TextButton(onClick = {
+                                    val updated = favorites.toMutableSet()
+                                    if (updated.contains(entry.url)) updated.remove(entry.url) else updated.add(entry.url)
+                                    favorites = updated
+                                    prefs.edit().putStringSet("urls", updated).apply()
+                                }) {
+                                    Text(if (favorites.contains(entry.url)) "★" else "☆", color = Gold, fontSize = 20.sp)
                                 }
                                 Text("PLAY", color = Gold, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             }
