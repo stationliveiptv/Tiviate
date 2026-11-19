@@ -17,6 +17,8 @@ internal object XtreamRepository {
         val series: List<M3uEntry>
     )
 
+    fun loadLiveChannels(username: String, password: String): List<M3uEntry> = loadCatalog(username, password).live
+
     fun loadCatalog(username: String, password: String): Catalog {
         require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
         require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
@@ -113,7 +115,8 @@ internal object XtreamRepository {
         val result = mutableListOf<M3uEntry>()
         val seasons = episodes.keys()
         while (seasons.hasNext()) {
-            val season = episodes.optJSONArray(seasons.next()) ?: continue
+            val seasonName = seasons.next()
+            val season = episodes.optJSONArray(seasonName) ?: continue
             for (i in 0 until season.length()) {
                 val episode = season.optJSONObject(i) ?: continue
                 val id = episode.optString("id").takeIf { it.isNotBlank() } ?: continue
@@ -121,7 +124,7 @@ internal object XtreamRepository {
                 val title = episode.optString("title").ifBlank { "Episode $id" }
                 val url = Uri.parse("${ProviderConfig.BASE_URL}/series").buildUpon()
                     .appendPath(username).appendPath(password).appendPath("$id.$ext").build().toString()
-                result += M3uEntry(title, url, "Season ${seasons.toString()}")
+                result += M3uEntry(title, url, "Season $seasonName")
             }
         }
         return result
