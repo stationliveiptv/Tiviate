@@ -79,18 +79,33 @@ internal object XtreamRepository {
         }
         return Catalog(
             live = result,
-            movies = loadVod(username, password, "get_vod_streams", "movie"),
-            series = loadVod(username, password, "get_series", "series")
+            movies = runCatching { loadVod(username, password, "get_vod_streams", "get_vod_categories", "movie") }.getOrDefault(emptyList()),
+            series = runCatching { loadVod(username, password, "get_series", "get_series_categories", "series") }.getOrDefault(emptyList())
         )
     }
 
-    private fun loadVod(username: String, password: String, action: String, kind: String): List<M3uEntry> {
+    private fun loadVod(username: String, password: String, action: String, categoriesAction: String, kind: String): List<M3uEntry> {
         val endpoint = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
             .buildUpon()
             .appendQueryParameter("username", username)
             .appendQueryParameter("password", password)
             .appendQueryParameter("action", action)
             .build().toString()
+        val categoryEndpoint = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
+            .buildUpon().appendQueryParameter("username", username)
+            .appendQueryParameter("password", password)
+            .appendQueryParameter("action", categoriesAction).build().toString()
+        val categoryNames = runCatching {
+            val cats = JSONArray(readText(categoryEndpoint))
+            buildMap<String, String> {
+                for (i in 0 until cats.length()) {
+                    val cat = cats.optJSONObject(i) ?: continue
+                    val id = cat.optString("category_id")
+                    val name = cat.optString("category_name")
+                    if (id.isNotBlank() && name.isNotBlank()) put(id, name)
+                }
+            }
+        }.getOrDefault(emptyMap())
         val array = JSONArray(readText(endpoint))
         val result = ArrayList<M3uEntry>(array.length())
         for (i in 0 until array.length()) {
@@ -108,7 +123,7 @@ internal object XtreamRepository {
             result += M3uEntry(
                 title = title,
                 url = url,
-                group = item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
+                group = categoryNames[item.optString("category_id")] ?: item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
                 logo = item.optString("stream_icon").takeIf { it.startsWith("http", true) }
                     ?: item.optString("cover").takeIf { it.startsWith("http", true) }
             )
