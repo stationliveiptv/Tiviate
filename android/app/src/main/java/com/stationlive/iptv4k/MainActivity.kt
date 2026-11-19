@@ -57,9 +57,9 @@ class MainActivity : ComponentActivity() {
                     onXtreamLogin = { user, pass, done ->
                         lifecycleScope.launch {
                             val result = withContext(Dispatchers.IO) {
-                                runCatching { XtreamRepository.loadLiveChannels(user, pass) }
+                                runCatching { XtreamRepository.loadCatalog(user, pass) }
                             }
-                            done(result)
+                            done(result.map { it.live })
                         }
                     },
                     onPlay = { streamUrl -> player.setMediaItem(MediaItem.fromUri(streamUrl)); player.prepare(); player.play() },
