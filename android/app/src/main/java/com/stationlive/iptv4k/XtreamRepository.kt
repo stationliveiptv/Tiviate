@@ -21,7 +21,6 @@ internal object XtreamRepository {
 
     fun loadCatalog(username: String, password: String): Catalog {
         require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
-        require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
         val loginUrl = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
             .buildUpon()
             .appendQueryParameter("username", username)
@@ -45,6 +44,19 @@ internal object XtreamRepository {
             .appendQueryParameter("password", password)
             .appendQueryParameter("action", "get_live_streams")
             .build().toString()
+        val categoryUrl = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
+            .buildUpon().appendQueryParameter("username", username)
+            .appendQueryParameter("password", password)
+            .appendQueryParameter("action", "get_live_categories").build().toString()
+        val categories = JSONArray(readText(categoryUrl))
+        val categoryNames = buildMap<String, String> {
+            for (i in 0 until categories.length()) {
+                val category = categories.optJSONObject(i) ?: continue
+                val id = category.optString("category_id")
+                val name = category.optString("category_name")
+                if (id.isNotBlank() && name.isNotBlank()) put(id, name)
+            }
+        }
         val streams = JSONArray(readText(streamsUrl))
         val result = ArrayList<M3uEntry>(streams.length())
         for (i in 0 until streams.length()) {
@@ -61,7 +73,7 @@ internal object XtreamRepository {
             result += M3uEntry(
                 title = name,
                 url = streamUrl,
-                group = item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
+                group = categoryNames[item.optString("category_id")] ?: item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
                 logo = item.optString("stream_icon").takeIf { it.startsWith("http", true) }
             )
         }
