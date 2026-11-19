@@ -12,9 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -94,7 +91,8 @@ private fun StationLiveApp(
     val visible = remember(entries, search, selectedGroup) {
         entries.filter {
             (selectedGroup == "All" || it.group == selectedGroup) &&
-                (search.isBlank() || it.title.contains(search, true) || it.group.orEmpty().contains(search, true)) &&\n                (!favoritesOnly || favorites.contains(it.url))
+                (search.isBlank() || it.title.contains(search, true) || it.group.orEmpty().contains(search, true)) &&
+                (!favoritesOnly || favorites.contains(it.url))
         }
     }
 
@@ -146,7 +144,10 @@ private fun StationLiveApp(
                         }
                     }
                 } else {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {\n                        Text("${entries.size} CHANNELS", color = Gold, fontWeight = FontWeight.Bold)\n                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text("FAVORITES") })\n                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("${entries.size} CHANNELS", color = Gold, fontWeight = FontWeight.Bold)
+                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text("FAVORITES") })
+                    }
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search channels") }, singleLine = true)
                     Spacer(Modifier.height(8.dp))
