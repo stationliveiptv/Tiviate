@@ -3,22 +3,23 @@
 ## Confirmed product decisions
 - Provider host: `global.linkmac.uk`
 - Provider port: `2086`
-- Login UI: username and password only for Xtream Codes.
-- Playlist mode: user-supplied M3U/M3U8 URL.
-- First delivery target: all planned platforms in parallel.
+- Transport requested by owner: HTTP
+- Xtream login UI: username and password only.
+- Host and port are fixed configuration and are not displayed in the login form.
+- M3U/M3U8 playlist mode remains a separate option.
+- Target platforms: Android/Android TV, Windows and iOS/iPadOS.
 
-## Important transport limitation
-The supplied provider endpoint is HTTP, not HTTPS. Xtream credentials and playlist URLs may contain sensitive access information. Do not send customer credentials to this endpoint from a public client until the provider offers HTTPS or a secured server-side integration is deployed. Do not enable Android cleartext traffic as a shortcut.
-
-## Recommended production flow
-1. Client sends credentials over HTTPS to the STATION LIVE backend.
-2. Backend validates the request and contacts the provider using a protected server-side configuration.
-3. Backend returns only the minimum account/catalogue data required and a short-lived, scoped session token.
-4. Client uses HTTPS APIs and authorized playback URLs; credentials are never written to logs.
-5. Tokens are stored using Android Keystore/EncryptedSharedPreferences, iOS Keychain, and Windows DPAPI or Credential Locker.
+## HTTP security warning
+The owner confirmed that the existing provider works over HTTP and wants the app to use it. HTTP does not encrypt credentials or traffic. Anyone able to observe the network path may be able to read Xtream usernames, passwords and playlist URLs. This is not secure for public customer use.
 
 ## Host visibility
-Removing host and port from the login screen is a UX choice, not secrecy. Any endpoint embedded in a client binary can be extracted. Keep secrets and provider integration credentials server-side.
+The host and port can be hidden from the user interface, but values embedded in an APK, EXE or IPA can be extracted. They are configuration, not secrets.
+
+## Required implementation checks
+- Confirm supported Xtream API paths and response format before implementing authentication.
+- Never log usernames, passwords, tokens or full playlist URLs.
+- Prefer an HTTPS backend proxy for public deployment. If the provider only supports HTTP, the proxy must run on a trusted server/network and protect client-to-backend traffic with HTTPS.
+- Do not claim login works until a real test account and provider API response have been tested.
 
 ## Current status
-The app screens are prototypes. No provider request, credential validation, token service, catalogue API or playback is implemented. The provider's API paths, response formats, TLS support and usage authorization still need verification.
+Provider host and port constants have been added to the Android, Windows and iOS client source code and are not shown in the login UI. Actual authentication requests, catalogue loading and playback are not implemented yet.
