@@ -54,6 +54,14 @@ class MainActivity : ComponentActivity() {
                             done(result)
                         }
                     },
+                    onXtreamLogin = { user, pass, done ->
+                        lifecycleScope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                runCatching { XtreamRepository.loadLiveChannels(user, pass) }
+                            }
+                            done(result)
+                        }
+                    },
                     onPlay = { streamUrl -> player.setMediaItem(MediaItem.fromUri(streamUrl)); player.prepare(); player.play() },
                     player = player
                 )
@@ -72,6 +80,7 @@ private enum class SourceMode { XTREAM, M3U }
 @Composable
 private fun StationLiveApp(
     onLoadPlaylist: (String, (Result<List<M3uEntry>>) -> Unit) -> Unit,
+    onXtreamLogin: (String, String, (Result<List<M3uEntry>>) -> Unit) -> Unit,
     onPlay: (String) -> Unit,
     player: ExoPlayer
 ) {
@@ -82,7 +91,7 @@ private fun StationLiveApp(
     var entries by remember { mutableStateOf(emptyList<M3uEntry>()) }
     var search by remember { mutableStateOf("") }
     var selectedGroup by remember { mutableStateOf("All") }
-    var message by remember { mutableStateOf("Load an authorized HTTPS M3U/M3U8 playlist to browse channels.") }
+    var message by remember { mutableStateOf("Connect with Xtream Codes or load an authorized playlist.") }
     var loading by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("station_live_favorites", Context.MODE_PRIVATE) }
@@ -126,21 +135,23 @@ private fun StationLiveApp(
                             }
                             Spacer(Modifier.height(12.dp))
                             Button(
-                                enabled = !loading && mode == SourceMode.M3U && playlistUrl.isNotBlank(),
+                                enabled = !loading && if (mode == SourceMode.M3U) playlistUrl.isNotBlank() else username.isNotBlank() && password.isNotBlank(),
                                 onClick = {
                                     loading = true
                                     message = "Loading playlist…"
-                                    onLoadPlaylist(playlistUrl) { result ->
+                                    val complete: (Result<List<M3uEntry>>) -> Unit = { result ->
                                         loading = false
                                         result.onSuccess {
                                             entries = it
-                                            message = if (it.isEmpty()) "Playlist loaded but contains no playable entries." else "Loaded ${it.size} entries."
-                                        }.onFailure { message = it.message ?: "Could not load playlist." }
+                                            message = if (it.isEmpty()) "Connected, but no live channels were returned." else "Loaded ${it.size} channels."
+                                        }.onFailure { message = it.message ?: "Connection failed." }
                                     }
+                                    if (mode == SourceMode.M3U) onLoadPlaylist(playlistUrl, complete)
+                                    else onXtreamLogin(username.trim(), password, complete)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Night)
-                            ) { Text(if (loading) "LOADING…" else "LOAD PLAYLIST", fontWeight = FontWeight.Bold) }
+                            ) { Text(if (loading) "CONNECTING…" else if (mode == SourceMode.M3U) "LOAD PLAYLIST" else "LOGIN & LOAD CHANNELS", fontWeight = FontWeight.Bold) }
                             Text(message, color = Muted, fontSize = 12.sp)
                         }
                     }
