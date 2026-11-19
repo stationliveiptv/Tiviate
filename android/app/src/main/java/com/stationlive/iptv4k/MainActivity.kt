@@ -12,6 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -38,9 +41,11 @@ private val Blue = Color(0xFF3987D8)
 private val Muted = Color(0xFF9AA8BC)
 
 class MainActivity : ComponentActivity() {
+    private lateinit var player: ExoPlayer
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val player = ExoPlayer.Builder(this).build()
+        player = ExoPlayer.Builder(this).build()
         lifecycleScope.launch {
             setContent {
                 StationLiveApp(
@@ -81,11 +86,15 @@ private fun StationLiveApp(
     var selectedGroup by remember { mutableStateOf("All") }
     var message by remember { mutableStateOf("Load an authorized HTTPS M3U/M3U8 playlist to browse channels.") }
     var loading by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("station_live_favorites", Context.MODE_PRIVATE) }
+    var favorites by remember { mutableStateOf(prefs.getStringSet("urls", emptySet())?.toSet() ?: emptySet()) }
+    var favoritesOnly by remember { mutableStateOf(false) }
     val groups = remember(entries) { listOf("All") + entries.mapNotNull { it.group }.distinct().sorted() }
     val visible = remember(entries, search, selectedGroup) {
         entries.filter {
             (selectedGroup == "All" || it.group == selectedGroup) &&
-                (search.isBlank() || it.title.contains(search, true) || it.group.orEmpty().contains(search, true))
+                (search.isBlank() || it.title.contains(search, true) || it.group.orEmpty().contains(search, true)) &&\n                (!favoritesOnly || favorites.contains(it.url))
         }
     }
 
@@ -137,7 +146,7 @@ private fun StationLiveApp(
                         }
                     }
                 } else {
-                    Text("${entries.size} CHANNELS", color = Gold, fontWeight = FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {\n                        Text("${entries.size} CHANNELS", color = Gold, fontWeight = FontWeight.Bold)\n                        FilterChip(selected = favoritesOnly, onClick = { favoritesOnly = !favoritesOnly }, label = { Text("FAVORITES") })\n                    }
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search channels") }, singleLine = true)
                     Spacer(Modifier.height(8.dp))
