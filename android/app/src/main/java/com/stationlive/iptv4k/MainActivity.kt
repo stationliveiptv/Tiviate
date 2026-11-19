@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -131,7 +132,7 @@ private fun StationLiveApp(
                                 OutlinedTextField(value = username, onValueChange = { username = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Username") }, singleLine = true)
                                 Spacer(Modifier.height(8.dp))
                                 OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                                Text("Xtream login is not connected yet. It requires a secure HTTPS service endpoint.", color = Muted, fontSize = 11.sp)
+                                Text("Use the Xtream Codes tab with your username and password. Do not paste the server address into the M3U URL field.", color = Muted, fontSize = 11.sp)
                             }
                             Spacer(Modifier.height(12.dp))
                             Button(
@@ -175,6 +176,10 @@ private fun StationLiveApp(
                                 Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).clickable { onPlay(entry.url) }.padding(13.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                if (!entry.logo.isNullOrBlank()) {
+                                    AsyncImage(model = entry.logo, contentDescription = entry.title, modifier = Modifier.size(42.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                }
                                 Column(Modifier.weight(1f)) {
                                     Text(entry.title, color = Color.White, fontWeight = FontWeight.SemiBold)
                                     Text(entry.group ?: "Uncategorized", color = Muted, fontSize = 11.sp)
