@@ -21,7 +21,7 @@ object XmlTvParser {
     fun parse(xml: String): List<EpgProgram> {
         val result = mutableListOf<EpgProgram>()
         val programmeRegex = Regex("(?is)<programme\\b([^>]*)>(.*?)</programme>")
-        val attrRegex = Regex("""([\\w-]+)\\s*=\\s*["']([^"']*)["']""")
+        val attrRegex = Regex("""([\w-]+)\s*=\s*["']([^"']*)["']""")
         val tagRegex = Regex("(?is)<(title|desc)\\b[^>]*>(.*?)</\\1>")
 
         programmeRegex.findAll(xml).forEach { match ->
