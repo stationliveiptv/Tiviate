@@ -14,7 +14,7 @@ data class M3uEntry(
 )
 
 object M3uParser {
-    private val attributeRegex = Regex("""([\\w-]+)\\s*=\\s*"([^"]*)"""")
+    private val attributeRegex = Regex("""([\w-]+)\s*=\s*"([^"]*)""")
 
     fun parse(content: String): List<M3uEntry> {
         val entries = mutableListOf<M3uEntry>()
