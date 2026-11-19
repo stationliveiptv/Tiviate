@@ -11,7 +11,14 @@ import java.net.URL
  * HTTP is intentionally limited by network_security_config to the provider host.
  */
 internal object XtreamRepository {
-    fun loadLiveChannels(username: String, password: String): List<M3uEntry> {
+    data class Catalog(
+        val live: List<M3uEntry>,
+        val movies: List<M3uEntry>,
+        val series: List<M3uEntry>
+    )
+
+    fun loadCatalog(username: String, password: String): Catalog {
+        require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
         require(username.isNotBlank() && password.isNotBlank()) { "Enter your username and password." }
         val loginUrl = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
             .buildUpon()
@@ -55,6 +62,67 @@ internal object XtreamRepository {
                 group = item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
                 logo = item.optString("stream_icon").takeIf { it.startsWith("http", true) }
             )
+        }
+        return Catalog(
+            live = result,
+            movies = loadVod(username, password, "get_vod_streams", "movie"),
+            series = loadVod(username, password, "get_series", "series")
+        )
+    }
+
+    private fun loadVod(username: String, password: String, action: String, kind: String): List<M3uEntry> {
+        val endpoint = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
+            .buildUpon()
+            .appendQueryParameter("username", username)
+            .appendQueryParameter("password", password)
+            .appendQueryParameter("action", action)
+            .build().toString()
+        val array = JSONArray(readText(endpoint))
+        val result = ArrayList<M3uEntry>(array.length())
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            val id = item.optString(if (kind == "movie") "stream_id" else "series_id")
+                .takeIf { it.isNotBlank() } ?: continue
+            val title = item.optString("name").ifBlank { if (kind == "movie") "Movie $id" else "Series $id" }
+            val extension = item.optString("container_extension").ifBlank { "mp4" }
+            val url = if (kind == "movie") {
+                Uri.parse("${ProviderConfig.BASE_URL}/movie").buildUpon()
+                    .appendPath(username).appendPath(password).appendPath("$id.$extension").build().toString()
+            } else {
+                "series:$id"
+            }
+            result += M3uEntry(
+                title = title,
+                url = url,
+                group = item.optString("category_name").takeIf { it.isNotBlank() && it != "null" },
+                logo = item.optString("stream_icon").takeIf { it.startsWith("http", true) }
+                    ?: item.optString("cover").takeIf { it.startsWith("http", true) }
+            )
+        }
+        return result
+    }
+
+    fun loadSeriesEpisodes(username: String, password: String, seriesId: String): List<M3uEntry> {
+        val endpoint = Uri.parse("${ProviderConfig.BASE_URL}/player_api.php")
+            .buildUpon().appendQueryParameter("username", username)
+            .appendQueryParameter("password", password)
+            .appendQueryParameter("action", "get_series_info")
+            .appendQueryParameter("series_id", seriesId).build().toString()
+        val info = JSONObject(readText(endpoint))
+        val episodes = info.optJSONObject("episodes") ?: return emptyList()
+        val result = mutableListOf<M3uEntry>()
+        val seasons = episodes.keys()
+        while (seasons.hasNext()) {
+            val season = episodes.optJSONArray(seasons.next()) ?: continue
+            for (i in 0 until season.length()) {
+                val episode = season.optJSONObject(i) ?: continue
+                val id = episode.optString("id").takeIf { it.isNotBlank() } ?: continue
+                val ext = episode.optString("container_extension").ifBlank { "mp4" }
+                val title = episode.optString("title").ifBlank { "Episode $id" }
+                val url = Uri.parse("${ProviderConfig.BASE_URL}/series").buildUpon()
+                    .appendPath(username).appendPath(password).appendPath("$id.$ext").build().toString()
+                result += M3uEntry(title, url, "Season ${seasons.toString()}")
+            }
         }
         return result
     }
