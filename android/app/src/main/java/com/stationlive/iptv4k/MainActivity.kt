@@ -42,7 +42,7 @@ private val Night = Color(0xFF070A10)
 private val Panel = Color(0xFF121A29)
 private val Gold = Color(0xFFD9B35F)
 private val Muted = Color(0xFF9AA8BC)
-private val Accent = Color(0xFF6650A4)
+private val Accent = Color(0xFF1769D2)
 
 class MainActivity : ComponentActivity() {
     private lateinit var player: ExoPlayer
