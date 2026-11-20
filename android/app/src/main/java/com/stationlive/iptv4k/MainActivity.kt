@@ -180,50 +180,114 @@ private fun StationLiveApp(
                 Spacer(Modifier.height(14.dp))
 
                 if (!connected) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("WELCOME TO STATION LIVE", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(selected = source == SourceMode.XTREAM, onClick = { source = SourceMode.XTREAM }, label = { Text("Xtream Codes") })
-                                FilterChip(selected = source == SourceMode.M3U, onClick = { source = SourceMode.M3U }, label = { Text("M3U / M3U8") })
-                            }
-                            if (source == SourceMode.XTREAM) {
-                                OutlinedTextField(user, { user = it }, Modifier.fillMaxWidth(), label = { Text("Username") }, singleLine = true)
-                                OutlinedTextField(pass, { pass = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                                OutlinedTextField(epgUrl, { epgUrl = it }, Modifier.fillMaxWidth(), label = { Text("Optional XMLTV EPG URL (HTTPS)") }, singleLine = true)
-                                Text("Provider server is configured in the app. HTTP is unencrypted; use a test account only.", color = Muted, fontSize = 11.sp)
-                            } else {
-                                OutlinedTextField(playlistUrl, { playlistUrl = it }, Modifier.fillMaxWidth(), label = { Text("HTTPS M3U playlist URL") }, singleLine = true)
-                                OutlinedTextField(epgUrl, { epgUrl = it }, Modifier.fillMaxWidth(), label = { Text("Optional XMLTV EPG URL (HTTPS)") }, singleLine = true)
-                            }
-                            Button(
-                                onClick = {
-                                    busy = true
-                                    message = "Connecting…"
-                                    if (source == SourceMode.XTREAM) {
-                                        loginXtream(user.trim(), pass) { result ->
-                                            busy = false
-                                            result.onSuccess { catalog ->
-                                                live = catalog.live; movies = catalog.movies; series = catalog.series
-                                                connected = true
-                                                message = "Connected: ${live.size} live, ${movies.size} movies, ${series.size} series"
-                                                if (epgUrl.isNotBlank()) loadEpg(epgUrl.trim()) { it.onSuccess { data -> epg = data } }
-                                            }.onFailure { message = it.message ?: "Unable to connect." }
-                                        }
-                                    } else {
-                                        loadPlaylist(playlistUrl.trim()) { result ->
-                                            busy = false
-                                            result.onSuccess { live = it; connected = true; message = "Playlist loaded: ${it.size} entries" }
-                                                .onFailure { message = it.message ?: "Unable to load playlist." }
-                                            if (result.isSuccess && epgUrl.isNotBlank()) loadEpg(epgUrl.trim()) { it.onSuccess { data -> epg = data } }
+                    Column(
+                        Modifier.fillMaxSize().padding(top = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("YOUR ENTERTAINMENT", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+                            Spacer(Modifier.height(7.dp))
+                            Text("ALL IN ONE PLACE", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                            Spacer(Modifier.height(7.dp))
+                            Text("Connect your playlist and enjoy your content", color = Muted, fontSize = 12.sp)
+                        }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Panel),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                Text("ADD PLAYLIST", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                Text("Choose your connection", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                                Row(
+                                    Modifier.fillMaxWidth().background(Night, RoundedCornerShape(14.dp)).padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    listOf(SourceMode.XTREAM to "Xtream Codes", SourceMode.M3U to "M3U Playlist").forEach { (mode, label) ->
+                                        Box(
+                                            Modifier.weight(1f)
+                                                .background(if (source == mode) Gold else Color.Transparent, RoundedCornerShape(11.dp))
+                                                .clickable { source = mode }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(label, color = if (source == mode) Night else Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
-                                },
-                                enabled = !busy && if (source == SourceMode.XTREAM) user.isNotBlank() && pass.isNotBlank() else playlistUrl.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Night)
-                            ) { Text(if (busy) "CONNECTING…" else "CONNECT", fontWeight = FontWeight.Bold) }
-                            Text(message, color = Muted, fontSize = 12.sp)
+                                }
+                                if (source == SourceMode.XTREAM) {
+                                    OutlinedTextField(
+                                        user, { user = it }, Modifier.fillMaxWidth(),
+                                        label = { Text("Username") }, placeholder = { Text("Enter your username") },
+                                        singleLine = true, shape = RoundedCornerShape(13.dp)
+                                    )
+                                    OutlinedTextField(
+                                        pass, { pass = it }, Modifier.fillMaxWidth(),
+                                        label = { Text("Password") }, placeholder = { Text("Enter your password") },
+                                        singleLine = true, shape = RoundedCornerShape(13.dp),
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                                    )
+                                    OutlinedTextField(
+                                        epgUrl, { epgUrl = it }, Modifier.fillMaxWidth(),
+                                        label = { Text("EPG URL (optional)") }, placeholder = { Text("https://…") },
+                                        singleLine = true, shape = RoundedCornerShape(13.dp)
+                                    )
+                                    Text("Server connection is configured for your service.", color = Muted, fontSize = 10.sp)
+                                } else {
+                                    OutlinedTextField(
+                                        playlistUrl, { playlistUrl = it }, Modifier.fillMaxWidth(),
+                                        label = { Text("Playlist URL") }, placeholder = { Text("Paste your M3U / M3U8 link") },
+                                        singleLine = true, shape = RoundedCornerShape(13.dp)
+                                    )
+                                    OutlinedTextField(
+                                        epgUrl, { epgUrl = it }, Modifier.fillMaxWidth(),
+                                        label = { Text("EPG URL (optional)") }, placeholder = { Text("https://…") },
+                                        singleLine = true, shape = RoundedCornerShape(13.dp)
+                                    )
+                                }
+                                Button(
+                                    onClick = {
+                                        busy = true
+                                        message = "Connecting…"
+                                        if (source == SourceMode.XTREAM) {
+                                            loginXtream(user.trim(), pass) { result ->
+                                                busy = false
+                                                result.onSuccess { catalog ->
+                                                    live = catalog.live; movies = catalog.movies; series = catalog.series
+                                                    connected = true
+                                                    message = "Connected: ${live.size} live, ${movies.size} movies, ${series.size} series"
+                                                    if (epgUrl.isNotBlank()) loadEpg(epgUrl.trim()) { it.onSuccess { data -> epg = data } }
+                                                }.onFailure { message = it.message ?: "Unable to connect." }
+                                            }
+                                        } else {
+                                            loadPlaylist(playlistUrl.trim()) { result ->
+                                                busy = false
+                                                result.onSuccess { live = it; connected = true; message = "Playlist loaded: ${it.size} entries" }
+                                                    .onFailure { message = it.message ?: "Unable to load playlist." }
+                                                if (result.isSuccess && epgUrl.isNotBlank()) loadEpg(epgUrl.trim()) { it.onSuccess { data -> epg = data } }
+                                            }
+                                        }
+                                    },
+                                    enabled = !busy && if (source == SourceMode.XTREAM) user.isNotBlank() && pass.isNotBlank() else playlistUrl.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Night)
+                                ) {
+                                    if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = Night, strokeWidth = 2.dp)
+                                    else Text("CONNECT & CONTINUE", fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                                }
+                                Text(message, color = Muted, fontSize = 11.sp)
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            Text("LIVE TV", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("  •  ", color = Gold)
+                            Text("MOVIES", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("  •  ", color = Gold)
+                            Text("SERIES", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("  •  ", color = Gold)
+                            Text("4K", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 } else {
