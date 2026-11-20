@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -112,6 +114,24 @@ private fun StationLiveApp(
     var selectedSeries by remember { mutableStateOf<M3uEntry?>(null) }
     var episodes by remember { mutableStateOf(emptyList<M3uEntry>()) }
     var selectedChannel by remember { mutableStateOf<M3uEntry?>(null) }
+    var playbackMessage by remember { mutableStateOf("Ready to play") }
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                playbackMessage = when (state) {
+                    Player.STATE_BUFFERING -> "Buffering stream…"
+                    Player.STATE_READY -> "Playing"
+                    Player.STATE_ENDED -> "Playback ended"
+                    else -> playbackMessage
+                }
+            }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                playbackMessage = "Playback error: ${error.errorCodeName}. Check stream URL, account access, or provider format."
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember { context.getSharedPreferences("station_live_favorites", Context.MODE_PRIVATE) }
     var favorites by remember { mutableStateOf(prefs.getStringSet("urls", emptySet())?.toSet() ?: emptySet()) }
@@ -252,7 +272,10 @@ private fun StationLiveApp(
                         OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Search ${tab.label.lowercase()}") }, singleLine = true)
                         Spacer(Modifier.height(6.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(categories) { group -> FilterChip(selected = category == group, onClick = { category = group }, label = { Text(group) }) }
+                            items(categories) { group ->
+                                val count = if (group == "All") current.size else current.count { it.group == group }
+                                FilterChip(selected = category == group, onClick = { category = group }, label = { Text("$group ($count)") })
+                            }
                         }
                         Spacer(Modifier.height(6.dp))
                         if (selectedSeries != null) {
@@ -301,7 +324,7 @@ private fun StationLiveApp(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(selectedChannel?.title.orEmpty(), color = Gold, modifier = Modifier.weight(1f), maxLines = 1)
-                                        TextButton(onClick = { player.stop(); selectedChannel = null }) { Text("CLOSE", color = Gold) }
+                                        TextButton(onClick = { player.stop(); selectedChannel = null; playbackMessage = "Ready to play" }) { Text("CLOSE", color = Gold) }
                                     }
                                     AndroidView(
                                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black),
@@ -313,6 +336,7 @@ private fun StationLiveApp(
                                         } },
                                         update = { it.player = player }
                                     )
+                                    Text(playbackMessage, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
                                 }
                             }
                         }
