@@ -211,13 +211,33 @@ private fun StationLiveApp(
                             Button(onClick = { if (epgUrl.isNotBlank()) { busy = true; loadEpg(epgUrl.trim()) { r -> busy = false; r.onSuccess { epg = it; message = "Loaded ${it.size} programmes" }.onFailure { message = it.message ?: "EPG failed" } } } }) { Text("LOAD") }
                         }
                         Text(message, color = Muted, fontSize = 11.sp)
-                        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(epg) { programme ->
-                                Card(colors = CardDefaults.cardColors(containerColor = Panel)) {
-                                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                        Text(programme.title, color = Color.White, fontWeight = FontWeight.Bold)
-                                        Text("${programme.channelId} • ${programme.startUtc?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "--:--"} – ${programme.stopUtc?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "--:--"}", color = Gold, fontSize = 11.sp)
-                                        programme.description?.let { Text(it, color = Muted, fontSize = 12.sp, maxLines = 3) }
+                        val epgByChannel = remember(epg) { epg.groupBy { it.channelId } }
+                        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            items(live) { channel ->
+                                val programmes = epgByChannel[channel.tvgId.orEmpty()].orEmpty()
+                                    .ifEmpty { epgByChannel[channel.title].orEmpty() }
+                                    .sortedBy { it.startUtc }
+                                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(13.dp)) {
+                                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            if (!channel.logo.isNullOrBlank()) AsyncImage(model = channel.logo, contentDescription = channel.title, modifier = Modifier.size(34.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(channel.title, color = Gold, fontWeight = FontWeight.Bold)
+                                        }
+                                        if (programmes.isEmpty()) {
+                                            Text("No programme data for this channel", color = Muted, fontSize = 11.sp)
+                                        } else {
+                                            programmes.take(3).forEach { programme ->
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(programme.startUtc?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "--:--", color = Gold, fontSize = 11.sp)
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(programme.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                                }
+                                                programme.description?.takeIf { it.isNotBlank() }?.let {
+                                                    Text(it, color = Muted, fontSize = 10.sp, maxLines = 2)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
