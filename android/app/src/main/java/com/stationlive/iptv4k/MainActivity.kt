@@ -2,6 +2,8 @@ package com.stationlive.iptv4k
 
 import android.content.Context
 import android.os.Bundle
+import android.content.Intent
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -66,7 +68,13 @@ class MainActivity : ComponentActivity() {
                     val result = withContext(Dispatchers.IO) { runCatching { XmlTvRepository.load(url) } }
                     done(result)
                 } },
-                play = { url -> player.setMediaItem(MediaItem.fromUri(url)); player.prepare(); player.play() },
+                play = { url, engine ->
+                    when (engine) {
+                        PlaybackEngine.MEDIA3 -> { player.setMediaItem(MediaItem.fromUri(url)); player.prepare(); player.play() }
+                        PlaybackEngine.VLC, PlaybackEngine.MPV -> ExternalPlayback.launch(this, engine, url)
+                            .onFailure { Toast.makeText(this, it.message ?: "Unable to open external player", Toast.LENGTH_LONG).show() }
+                    }
+                },
                 player = player
             )
         }
@@ -92,7 +100,7 @@ private fun StationLiveApp(
     loginXtream: (String, String, (Result<XtreamRepository.Catalog>) -> Unit) -> Unit,
     loadEpisodes: (String, String, String, (Result<List<M3uEntry>>) -> Unit) -> Unit,
     loadEpg: (String, (Result<List<EpgProgram>>) -> Unit) -> Unit,
-    play: (String) -> Unit,
+    play: (String, PlaybackEngine) -> Unit,
     player: ExoPlayer
 ) {
     var source by remember { mutableStateOf(SourceMode.XTREAM) }
@@ -115,6 +123,8 @@ private fun StationLiveApp(
     var episodes by remember { mutableStateOf(emptyList<M3uEntry>()) }
     var selectedChannel by remember { mutableStateOf<M3uEntry?>(null) }
     var playbackMessage by remember { mutableStateOf("Ready to play") }
+    var playbackEngine by remember { mutableStateOf(PlaybackEngine.MEDIA3) }
+    var engineMenuExpanded by remember { mutableStateOf(false) }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -305,7 +315,7 @@ private fun StationLiveApp(
                                             } else {
                                                 selectedChannel = entry
                                                 playbackMessage = "Connecting to stream…"
-                                                if (!entry.url.startsWith("series:")) play(entry.url)
+                                                if (!entry.url.startsWith("series:")) play(entry.url, playbackEngine)
                                             }
                                         }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                             if (!entry.logo.isNullOrBlank()) AsyncImage(model = entry.logo, contentDescription = entry.title, modifier = Modifier.size(42.dp))
@@ -342,7 +352,34 @@ private fun StationLiveApp(
                                         Text(selectedChannel?.title.orEmpty(), color = Gold, modifier = Modifier.weight(1f), maxLines = 1)
                                         TextButton(onClick = { player.stop(); selectedChannel = null; playbackMessage = "Ready to play" }) { Text("CLOSE", color = Gold) }
                                     }
-                                    AndroidView(
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("PLAYER ENGINE", color = Muted, fontSize = 10.sp, modifier = Modifier.weight(1f))
+                                        Box {
+                                            TextButton(onClick = { engineMenuExpanded = true }) {
+                                                Text(playbackEngine.label, color = Gold, fontWeight = FontWeight.Bold)
+                                            }
+                                            DropdownMenu(expanded = engineMenuExpanded, onDismissRequest = { engineMenuExpanded = false }) {
+                                                PlaybackEngine.values().forEach { engine ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(engine.label) },
+                                                        onClick = {
+                                                            playbackEngine = engine
+                                                            engineMenuExpanded = false
+                                                            playbackMessage = when (engine) {
+                                                                PlaybackEngine.MEDIA3 -> "Built-in player selected. Press PLAY on a channel."
+                                                                PlaybackEngine.VLC -> "VLC selected. VLC for Android must be installed."
+                                                                PlaybackEngine.MPV -> "MPV selected. mpv-android must be installed."
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (playbackEngine == PlaybackEngine.MEDIA3) AndroidView(
                                         modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black),
                                         factory = { ctx -> PlayerView(ctx).apply {
                                             this.player = player
