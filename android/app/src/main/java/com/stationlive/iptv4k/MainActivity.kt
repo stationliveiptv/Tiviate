@@ -135,9 +135,15 @@ private fun StationLiveApp(
         Surface(Modifier.fillMaxSize(), color = Night) {
             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(
+                        model = "https://raw.githubusercontent.com/stationliveiptv/panel/main/logo.jfif",
+                        contentDescription = "STATION LIVE IPTV 4K logo",
+                        modifier = Modifier.size(width = 76.dp, height = 56.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("STATION LIVE", color = Gold, fontSize = 27.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        Text("IPTV 4K  •  ENTERTAINMENT, YOUR WAY", color = Muted, fontSize = 10.sp, letterSpacing = 1.4.sp)
+                        Text("STATION LIVE", color = Gold, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+                        Text("IPTV 4K  •  ENTERTAINMENT, YOUR WAY", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
                     }
                     Text("4K", color = Gold, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp)
                 }
@@ -283,11 +289,33 @@ private fun StationLiveApp(
                             }
                         }
                         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Gold)
-                        AndroidView(
-                            modifier = Modifier.fillMaxWidth().height(190.dp).background(Color.Black),
-                            factory = { ctx -> PlayerView(ctx).apply { this.player = player; useController = true; controllerAutoShow = true } },
-                            update = { it.player = player }
-                        )
+                        if (selectedChannel != null) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color.Black),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(selectedChannel?.title.orEmpty(), color = Gold, modifier = Modifier.weight(1f), maxLines = 1)
+                                        TextButton(onClick = { player.stop(); selectedChannel = null }) { Text("CLOSE", color = Gold) }
+                                    }
+                                    AndroidView(
+                                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black),
+                                        factory = { ctx -> PlayerView(ctx).apply {
+                                            this.player = player
+                                            useController = true
+                                            controllerAutoShow = true
+                                            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                                        } },
+                                        update = { it.player = player }
+                                    )
+                                }
+                            }
+                        }
                     }
                     TextButton(onClick = { player.stop(); connected = false; live = emptyList(); movies = emptyList(); series = emptyList(); epg = emptyList(); selectedSeries = null; message = "Disconnected" }) {
                         Text("CHANGE PLAYLIST / LOGOUT", color = Gold)
