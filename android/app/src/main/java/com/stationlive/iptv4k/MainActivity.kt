@@ -271,42 +271,58 @@ private fun StationLiveApp(
                     } else {
                         OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Search ${tab.label.lowercase()}") }, singleLine = true)
                         Spacer(Modifier.height(6.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(categories) { group ->
-                                val count = if (group == "All") current.size else current.count { it.group == group }
-                                FilterChip(selected = category == group, onClick = { category = group }, label = { Text("$group ($count)") })
-                            }
-                        }
-                        Spacer(Modifier.height(6.dp))
                         if (selectedSeries != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = { selectedSeries = null; episodes = emptyList() }) { Text("← SERIES", color = Gold) }
                                 Text(selectedSeries!!.title, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
-                        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            items(if (selectedSeries != null) episodes else filtered) { entry ->
-                                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
-                                    Row(Modifier.fillMaxWidth().clickable {
-                                        if (tab == LibraryTab.SERIES && selectedSeries == null && entry.url.startsWith("series:")) {
-                                            selectedSeries = entry
-                                            busy = true
-                                            loadEpisodes(user, pass, entry.url.removePrefix("series:")) { r -> busy = false; r.onSuccess { episodes = it }.onFailure { message = it.message ?: "Unable to load episodes" } }
-                                        } else { selectedChannel = entry; if (!entry.url.startsWith("series:")) play(entry.url) }
-                                    }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        if (!entry.logo.isNullOrBlank()) AsyncImage(model = entry.logo, contentDescription = entry.title, modifier = Modifier.size(48.dp))
-                                        Spacer(Modifier.width(10.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(entry.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                                            Text(entry.group ?: if (tab == LibraryTab.SERIES) "Series" else "Uncategorized", color = Muted, fontSize = 11.sp)
+                        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            LazyColumn(Modifier.width(116.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                items(categories) { group ->
+                                    val count = if (group == "All") current.size else current.count { it.group == group }
+                                    val active = category == group
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().clickable { category = group },
+                                        colors = CardDefaults.cardColors(containerColor = if (active) Accent else Panel),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Column(Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 11.dp)) {
+                                            Text(group, color = if (active) Color.White else Muted, fontSize = 11.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, maxLines = 2)
+                                            Text(count.toString(), color = Gold, fontSize = 10.sp)
                                         }
-                                        TextButton(onClick = {
-                                            val changed = favorites.toMutableSet()
-                                            if (!changed.add(entry.url)) changed.remove(entry.url)
-                                            favorites = changed
-                                            prefs.edit().putStringSet("urls", changed).apply()
-                                        }) { Text(if (favorites.contains(entry.url)) "★" else "☆", color = Gold, fontSize = 20.sp) }
-                                        Text(if (tab == LibraryTab.SERIES && selectedSeries == null) "OPEN" else "PLAY", color = Gold, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                items(if (selectedSeries != null) episodes else filtered) { entry ->
+                                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(13.dp)) {
+                                        Row(Modifier.fillMaxWidth().clickable {
+                                            if (tab == LibraryTab.SERIES && selectedSeries == null && entry.url.startsWith("series:")) {
+                                                selectedSeries = entry
+                                                busy = true
+                                                loadEpisodes(user, pass, entry.url.removePrefix("series:")) { r -> busy = false; r.onSuccess { episodes = it }.onFailure { message = it.message ?: "Unable to load episodes" } }
+                                            } else {
+                                                selectedChannel = entry
+                                                playbackMessage = "Connecting to stream…"
+                                                if (!entry.url.startsWith("series:")) play(entry.url)
+                                            }
+                                        }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            if (!entry.logo.isNullOrBlank()) AsyncImage(model = entry.logo, contentDescription = entry.title, modifier = Modifier.size(42.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text(entry.title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 2)
+                                                Text(entry.group ?: "Uncategorized", color = Muted, fontSize = 10.sp, maxLines = 1)
+                                            }
+                                            TextButton(onClick = {
+                                                val changed = favorites.toMutableSet()
+                                                if (!changed.add(entry.url)) changed.remove(entry.url)
+                                                favorites = changed
+                                                prefs.edit().putStringSet("urls", changed).apply()
+                                            }, contentPadding = PaddingValues(2.dp)) {
+                                                Text(if (favorites.contains(entry.url)) "★" else "☆", color = Gold, fontSize = 18.sp)
+                                            }
+                                        }
                                     }
                                 }
                             }
